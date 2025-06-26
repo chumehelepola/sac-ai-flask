@@ -11,10 +11,11 @@ import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 # Load environment variables
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-if not load_dotenv(dotenv_path):
-    raise FileNotFoundError(f"Could not find .env file at {dotenv_path}")
-
+if os.environ.get("RENDER") != "true":  # Only load .env locally, not on Render
+    dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+    if not load_dotenv(dotenv_path):
+        print(f"⚠️ Warning: Could not find .env file at {dotenv_path}")
+        
 # Load API keys and database IDs
 openai_api_key = os.getenv('OPENAI_API_KEY')
 notion_token = os.getenv('NOTION_TOKEN')
