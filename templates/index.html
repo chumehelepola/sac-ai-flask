@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Acting Mentor Bot</title>
+</head>
+<body>
+    <h1>Ask the Acting Mentor AI</h1>
+    <form method="POST">
+        {% if follow_up %}
+            <!-- If follow-up is needed, ask for Yes/No input -->
+            <label for="follow_up">Would you like to know more? (Yes/No):</label><br>
+            <input type="text" id="follow_up" name="follow_up" placeholder="Type Yes or No" required><br><br>
+        {% else %}
+            <!-- Standard question input -->
+            <label for="question">Your Question:</label><br>
+            <input type="text" id="question" name="question" placeholder="Type your question here" required><br><br>
+        {% endif %}
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Display AI's response -->
+    {% if answer %}
+        <h2>AI’s Response:</h2>
+        <p>{{ answer }}</p>
+    {% endif %}
+
+    <!-- Display error messages, if any -->
+    {% if error_message %}
+        <h2>Error:</h2>
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+</body>
+</html>
