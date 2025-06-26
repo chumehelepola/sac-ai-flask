@@ -1,0 +1,10 @@
+flask
+flask-cors
+flask-session
+gunicorn
+python-dotenv
+requests
+openai
+notion-client
+boto3
+PyMuPDF
