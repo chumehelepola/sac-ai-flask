@@ -1,44 +1,51 @@
 import os
 import requests
-import PyPDF2  # PyPDF2 for PDF text extraction
+import PyPDF2  # For PDF text extraction
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from flask_session import Session
 from urllib.parse import quote
-import openai
+from openai import OpenAI  # ✅ Lowercase import is correct
+import openai  # 👈 Add this line to check version
+print("✅ OpenAI version:", openai.__version__)  # 👈 This will show in Render logs
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
-# Load environment variables
-if os.environ.get("RENDER") != "true":  # Only load .env locally, not on Render
+# Only load .env locally; Render provides env vars automatically
+if os.environ.get("RENDER") != "true":
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
     if not load_dotenv(dotenv_path):
         print(f"⚠️ Warning: Could not find .env file at {dotenv_path}")
-        
-# Load API keys and database IDs
+
+# Load API keys and config from env vars
 openai_api_key = os.getenv('OPENAI_API_KEY')
 notion_token = os.getenv('NOTION_TOKEN')
-notion_database_id = os.getenv('NOTION_DATABASE_ID')  # Acting tips database
-notion_database_scene_id = os.getenv('NOTION_DATABASE_ID_SCENE')  # Scene analysis database
+notion_database_id = os.getenv('NOTION_DATABASE_ID')  # Acting tips DB
+notion_database_scene_id = os.getenv('NOTION_DATABASE_ID_SCENE')  # Scene analysis DB
 aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
 aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
 s3_bucket_name = os.getenv('S3_BUCKET_NAME')
 aws_default_region = os.getenv('AWS_DEFAULT_REGION')
 
-# Debug print statements
-print(f"AWS_ACCESS_KEY_ID: {aws_access_key}")
-print(f"AWS_SECRET_ACCESS_KEY: {aws_secret_key}")
+from openai import OpenAI
+client = OpenAI(api_key=openai_api_key)
+
+# Validate all required environment variables
+required_vars = [
+    openai_api_key, notion_token, notion_database_id,
+    notion_database_scene_id, aws_access_key,
+    aws_secret_key, s3_bucket_name, aws_default_region
+]
+if not all(required_vars):
+    raise ValueError("❌ Missing one or more required environment variables. Check your .env file or Render settings.")
+
+# ✅ Debug (safe) prints
+print("✅ AWS region and bucket config loaded.")
 print(f"AWS_DEFAULT_REGION: {aws_default_region}")
 print(f"S3_BUCKET_NAME: {s3_bucket_name}")
 
-if not openai_api_key or not notion_token or not notion_database_id or not notion_database_scene_id or not aws_access_key or not aws_secret_key or not s3_bucket_name or not aws_default_region:
-    raise ValueError("Missing required environment variables: check .env file")
-
-# Set the OpenAI API key
-openai.api_key = openai_api_key
-
-# Initialize Boto3 S3 client
+# ✅ Initialize S3 client
 s3_client = boto3.client(
     's3',
     aws_access_key_id=aws_access_key,
@@ -80,7 +87,9 @@ def extract_text_from_pdf(file_url):
             reader = PyPDF2.PdfReader(f)
             text = ""
             for page in reader.pages:
-                text += page.extract_text()
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text
 
         return text
     except requests.exceptions.RequestException as e:
@@ -160,8 +169,8 @@ def home():
 
             notion_summary = " ".join(relevant_info)
 
-            # Generate AI response using OpenAI
-            response = openai.ChatCompletion.create(
+            # Generate AI response using OpenAI (new API)
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": f"You are an acting mentor AI. Use the following information to help answer questions from the user: {notion_summary}"},
@@ -169,7 +178,7 @@ def home():
                 ],
                 max_tokens=150
             )
-            answer = response.choices[0].message['content'].strip()
+            answer = response.choices[0].message.content
 
         except requests.exceptions.RequestException as e:
             error_message = f"Error retrieving data from Notion: {e}"
@@ -192,19 +201,19 @@ def scene_analysis():
                 "Notion-Version": "2022-06-28",
             },
             json={
-                "sorts": [{"property": "Created time", "direction": "descending"}],  # Sort by Created time
-                "page_size": 1  # Get the latest entry
+                "sorts": [{"property": "Created time", "direction": "descending"}],
+                "page_size": 1
             }
         )
 
         notion_data = notion_response.json()
-        print(f"Notion Response Data: {notion_data}")  # Print the entire response for debugging
+        print(f"Notion Response Data: {notion_data}")
         if notion_response.status_code != 200:
             raise ValueError(f"Scene Analysis API error: {notion_data}")
 
         # Extract the latest scene entry
         latest_scene = notion_data.get('results', [])[0]
-        print(f"Latest Scene Data: {latest_scene}")  # Print the latest scene data for debugging
+        print(f"Latest Scene Data: {latest_scene}")
         title = latest_scene.get('properties', {}).get('Title', {}).get('title', [])
         upload_scene = latest_scene.get('properties', {}).get('Upload Scene', {})
 
@@ -212,15 +221,14 @@ def scene_analysis():
             return jsonify({'message': "No scenes found in the Scene Analysis database."})
 
         scene_content = f"Title: {title[0]['text']['content']}\n"
-        print(f"Upload Scene Data: {upload_scene}")  # Print the upload scene data for debugging
+        print(f"Upload Scene Data: {upload_scene}")
         files = upload_scene.get('files', [])
         if not files:
             return jsonify({'error': "No files found in the Upload Scene property."}), 500
 
         for file in files:
             try:
-                print(f"File Data: {file}")  # Print the file data for debugging
-                # Ensure the file URL is correct and accessible
+                print(f"File Data: {file}")
                 file_url = None
                 if file["type"] == "file" and "file" in file:
                     file_url = file["file"].get("url")
@@ -230,7 +238,7 @@ def scene_analysis():
                     raise KeyError("File URL not found")
                 
                 scene_content += f"File: {file_url}\n"
-                print(f"Extracting text from PDF: {file_url}")  # Log the file URL
+                print(f"Extracting text from PDF: {file_url}")
 
                 # Extract text from the PDF file
                 extracted_text = extract_text_from_pdf(file_url)
@@ -245,8 +253,8 @@ def scene_analysis():
                 print(f"Error extracting text from PDF: {e}")
                 return jsonify({'error': f"Error extracting text from PDF: {e}"}), 500
 
-        # Generate leading questions using OpenAI
-        response = openai.ChatCompletion.create(
+        # Generate leading questions using OpenAI (new API)
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an AI that provides leading questions for actors based on scene content."},
@@ -254,7 +262,7 @@ def scene_analysis():
             ],
             max_tokens=200
         )
-        questions = response.choices[0].message['content'].strip()
+        questions = response.choices[0].message.content
 
         return jsonify({'questions': questions})
 
@@ -380,7 +388,8 @@ def ask():
 
         notion_summary = ' '.join(relevant_info)
 
-        response = openai.ChatCompletion.create(
+        # Use OpenAI client (new API)
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"You are an acting mentor AI. Use the following information to help answer questions from the user: {notion_summary}"},
@@ -388,7 +397,7 @@ def ask():
             ],
             max_tokens=150
         )
-        answer = response.choices[0].message['content'].strip()
+        answer = response.choices[0].message.content
         return jsonify({'response': answer})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -448,18 +457,18 @@ def upload():
 def generate_final_feedback(questions, responses):
     try:
         questions_and_answers = ""
-        for question, response in zip(questions, responses):
-            questions_and_answers += f"Q: {question}\nA: {response}\n"
+        for question, response_text in zip(questions, responses):
+            questions_and_answers += f"Q: {question}\nA: {response_text}\n"
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are an AI that provides scene analysis feedback based on client responses."},
-                {"role": "user", "content": f"Here are the responses from the client: {questions_and_answers}\nProvide feedback based on these responses."}
+                {"role": "system", "content": "You are an acting mentor AI who gives actionable feedback to an actor based on their answers to a set of acting questions."},
+                {"role": "user", "content": f"Here are the questions and answers:\n{questions_and_answers}\nPlease provide final feedback for the actor."}
             ],
             max_tokens=150
         )
-        feedback = response.choices[0].message['content'].strip()
+        feedback = response.choices[0].message.content
         return feedback
     except Exception as e:
         return f"An error occurred while generating feedback: {str(e)}"
