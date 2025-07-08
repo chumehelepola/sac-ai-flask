@@ -1,14 +1,15 @@
 import os
 import requests
-import PyPDF2  # For PDF text extraction
+import PyPDF2
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from flask_session import Session
 from urllib.parse import quote
-from openai import OpenAI  # ✅ Lowercase import is correct
-import openai  # 👈 Add this line to check version
-import httpx   # 👈 Add this line to check version
+from openai import OpenAI
+import openai
+import boto3  # ✅ Required for S3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError  # ✅ Optional, for exception handling
 
 print("✅ OpenAI version:", openai.__version__)  # 👈 Confirm version
 print("✅ httpx version:", httpx.__version__)    # 👈 Confirm version
