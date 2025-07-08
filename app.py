@@ -8,10 +8,10 @@ from flask_session import Session
 from urllib.parse import quote
 from openai import OpenAI  # ✅ Lowercase import is correct
 import openai  # 👈 Add this line to check version
-print("✅ OpenAI version:", openai.__version__)  # 👈 This will show in Render logs
-import boto3
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+import httpx   # 👈 Add this line to check version
 
+print("✅ OpenAI version:", openai.__version__)  # 👈 Confirm version
+print("✅ httpx version:", httpx.__version__)    # 👈 Confirm version
 # Only load .env locally; Render provides env vars automatically
 if os.environ.get("RENDER") != "true":
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
