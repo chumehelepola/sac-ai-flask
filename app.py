@@ -4,6 +4,8 @@ import PyPDF2
 import httpx  # ✅ ADD THIS LINE
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session
+if not hasattr(Flask, 'session_cookie_name'):
+    Flask.session_cookie_name = property(lambda self: self.config.get('SESSION_COOKIE_NAME', 'session'))
 from flask_cors import CORS
 from flask_session import Session
 from urllib.parse import quote
@@ -14,6 +16,11 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 print("✅ OpenAI version:", openai.__version__)
 print("✅ httpx version:", httpx.__version__)
+
+# ✅ Monkey-patch for Flask 3.x compatibility with Flask-Session
+if not hasattr(Flask, 'session_cookie_name'):
+    Flask.session_cookie_name = property(lambda self: self.config.get('SESSION_COOKIE_NAME', 'session'))
+
 # Only load .env locally; Render provides env vars automatically
 if os.environ.get("RENDER") != "true":
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -70,6 +77,7 @@ app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './flask_session/'
 app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_COOKIE_NAME'] = 'sac-session'  # ✅ Optional but recommended
 Session(app)
 CORS(app)  # Enable CORS for all routes
 
