@@ -1,6 +1,7 @@
 import os
 import requests
 import PyPDF2
+import httpx  # ✅ ADD THIS LINE
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
@@ -8,11 +9,11 @@ from flask_session import Session
 from urllib.parse import quote
 from openai import OpenAI
 import openai
-import boto3  # ✅ Required for S3
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError  # ✅ Optional, for exception handling
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
-print("✅ OpenAI version:", openai.__version__)  # 👈 Confirm version
-print("✅ httpx version:", httpx.__version__)    # 👈 Confirm version
+print("✅ OpenAI version:", openai.__version__)
+print("✅ httpx version:", httpx.__version__)
 # Only load .env locally; Render provides env vars automatically
 if os.environ.get("RENDER") != "true":
     dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
