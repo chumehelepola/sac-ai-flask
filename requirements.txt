@@ -7,3 +7,4 @@ python-dotenv==1.0.1
 notion-client==2.2.1
 boto3==1.34.83
 PyPDF2==3.0.1
+gunicorn
