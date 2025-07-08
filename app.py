@@ -29,7 +29,7 @@ s3_bucket_name = os.getenv('S3_BUCKET_NAME')
 aws_default_region = os.getenv('AWS_DEFAULT_REGION')
 
 from openai import OpenAI
-client = OpenAI(api_key=openai_api_key)
+client = OpenAI(api_key=openai_api_key, http_client=None)
 
 # Validate all required environment variables
 required_vars = [
